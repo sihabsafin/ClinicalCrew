@@ -510,6 +510,17 @@ def main():
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # ── Model Selector for Phase 1 ──────────────────────────────
+        from utils.model_selector import render_phase_model_selector, render_selection_status_bar
+
+        st.markdown(
+            "<h3 style='font-family:Syne,sans-serif; color:#e2f0ef; "
+            "font-size:1rem; margin-bottom:0.3rem;'>🤖 Select AI Model for Phase 1</h3>",
+            unsafe_allow_html=True,
+        )
+        selected_model = render_phase_model_selector("phase1")
+        st.markdown("<br>", unsafe_allow_html=True)
+
         # ── Run Intake Crew ─────────────────────────────────────
         col_btn, col_status = st.columns([2, 3])
         with col_btn:
@@ -517,7 +528,11 @@ def main():
                 "🚀 Run Intake Crew (Phase 1)",
                 use_container_width=True,
                 type="primary",
+                disabled=(selected_model is None),  # ← Guard: model must be selected
             )
+
+        if selected_model is None:
+            st.warning("⚠️ Please select a model above before running.", icon="🤖")
 
         if run_btn:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -543,7 +558,10 @@ def main():
             with st.spinner("🤖 Agents working — this may take 60-120 seconds..."):
                 try:
                     from crews.crews import run_intake_crew
-                    result = run_intake_crew(st.session_state.report_text)
+                    result = run_intake_crew(
+                        st.session_state.report_text,
+                        phase_key="phase1",        # ← Pass phase_key to crew
+                    )
 
                     st.session_state.parsed_report   = result["parsed_report"]
                     st.session_state.patient_context  = result["patient_context"]
