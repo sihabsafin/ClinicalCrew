@@ -26,7 +26,8 @@ def main():
             """,
             unsafe_allow_html=True,
         )
-        from config import AVAILABLE_MODELS, DEFAULT_MODEL
+        from config import AVAILABLE_MODELS, get_model_names
+DEFAULT_MODEL = get_model_names()[0]  # fallback to first model
         model_names = list(AVAILABLE_MODELS.keys())
         selected = st.selectbox(
             "AI Model",
