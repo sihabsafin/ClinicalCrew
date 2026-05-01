@@ -35,7 +35,7 @@ def _out(task) -> str:
 # PHASE 1 — Report Intake Crew
 # ─────────────────────────────────────────
 
-def run_intake_crew(report_text: str) -> dict:
+def run_intake_crew(report_text: str, phase_key: str = "phase1") -> dict:
     """
     Phase 1: Parse report, build patient context, validate data.
     Returns dict with keys: parsed_report, patient_context, validation
@@ -52,9 +52,9 @@ def run_intake_crew(report_text: str) -> dict:
     )
 
     # Instantiate agents
-    parser_agent    = get_report_parser_agent()
-    context_agent   = get_patient_context_agent()
-    validator_agent = get_data_validator_agent()
+    parser_agent    = get_report_parser_agent(phase_key)
+    context_agent   = get_patient_context_agent(phase_key)
+    validator_agent = get_data_validator_agent(phase_key)
 
     # Build tasks
     t1 = task_parse_report(parser_agent, report_text)
@@ -94,7 +94,11 @@ def run_intake_crew(report_text: str) -> dict:
 # PHASE 2 — Diagnosis Analysis Crew
 # ─────────────────────────────────────────
 
-def run_diagnosis_crew(parsed_report: str, patient_context: str) -> dict:
+def run_diagnosis_crew(
+    parsed_report: str,
+    patient_context: str,
+    phase_key: str = "phase2",
+) -> dict:
     """
     Phase 2: Symptom analysis, lab interpretation, risk assessment.
     Returns dict with keys: symptom_analysis, lab_interpretation, risk_assessment
@@ -111,9 +115,9 @@ def run_diagnosis_crew(parsed_report: str, patient_context: str) -> dict:
     )
 
     # Instantiate agents
-    symptom_agent = get_symptom_analyzer_agent()
-    lab_agent     = get_lab_interpreter_agent()
-    risk_agent    = get_risk_assessor_agent()
+    symptom_agent = get_symptom_analyzer_agent(phase_key)
+    lab_agent     = get_lab_interpreter_agent(phase_key)
+    risk_agent    = get_risk_assessor_agent(phase_key)
 
     # Build tasks
     t1 = task_analyze_symptoms(symptom_agent, patient_context, parsed_report)
@@ -159,6 +163,7 @@ def run_treatment_crew(
     symptom_analysis: str,
     risk_assessment: str,
     lab_interpretation: str,
+    phase_key: str = "phase3",
 ) -> dict:
     """
     Phase 3: Treatment suggestions, drug interactions, dosage calculation.
@@ -176,9 +181,9 @@ def run_treatment_crew(
     )
 
     # Instantiate agents
-    treatment_agent  = get_treatment_suggester_agent()
-    drug_agent       = get_drug_interaction_agent()
-    dosage_agent     = get_dosage_calculator_agent()
+    treatment_agent  = get_treatment_suggester_agent(phase_key)
+    drug_agent       = get_drug_interaction_agent(phase_key)
+    dosage_agent     = get_dosage_calculator_agent(phase_key)
 
     # Build tasks — each task uses output of previous as context
     t1 = task_suggest_treatments(
@@ -241,6 +246,7 @@ def run_summary_crew(
     treatment_suggestions: str,
     drug_interactions: str,
     dosage_recommendations: str,
+    phase_key: str = "phase4",
 ) -> dict:
     """
     Phase 4: Physician report, patient summary, follow-up plan.
@@ -258,9 +264,9 @@ def run_summary_crew(
     )
 
     # Instantiate agents
-    writer_agent   = get_report_writer_agent()
-    explainer_agent = get_patient_explainer_agent()
-    followup_agent  = get_followup_planner_agent()
+    writer_agent    = get_report_writer_agent(phase_key)
+    explainer_agent = get_patient_explainer_agent(phase_key)
+    followup_agent  = get_followup_planner_agent(phase_key)
 
     # Build tasks
     t1 = task_write_physician_report(
