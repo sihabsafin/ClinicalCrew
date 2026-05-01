@@ -16,75 +16,68 @@ def main():
     inject_styles()
 
     # ── Model Selector Sidebar ─────────────────────────────────
-with st.sidebar:
-    st.markdown(
-        """
-        <div style="font-family:'Syne',sans-serif; font-weight:700;
-                    color:#2dd4bf; font-size:0.9rem; margin-bottom:0.5rem;">
-            🤖 Select AI Model
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    from config import AVAILABLE_MODELS, DEFAULT_MODEL
-
-    model_names = list(AVAILABLE_MODELS.keys())
-
-    selected = st.selectbox(
-        "AI Model",
-        model_names,
-        index=model_names.index(DEFAULT_MODEL) if DEFAULT_MODEL in model_names else 0,
-        label_visibility="collapsed",
-        key="selected_model",
-    )
-
-    cfg = AVAILABLE_MODELS[selected]
-    provider_colors = {
-        "groq":       "#f97316",
-        "gemini":     "#3b82f6",
-        "openrouter": "#a855f7",
-    }
-    p_color = provider_colors.get(cfg["provider"], "#0d9488")
-
-    components.html(
-        f"""<!DOCTYPE html><html><head>
-        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-        <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
-        </head><body>
-        <div style="background:#111918; border:1px solid #1f2937;
-                    border-left:3px solid {p_color}; border-radius:8px;
-                    padding:0.7rem 0.9rem; margin-top:0.3rem;">
-          <div style="font-family:'DM Sans',sans-serif; color:{p_color};
-                      font-size:0.72rem; font-weight:500; margin-bottom:0.3rem;
-                      text-transform:uppercase; letter-spacing:0.05em;">
-            {cfg['provider'].title()}
-          </div>
-          <div style="font-family:'DM Sans',sans-serif; color:#94a3b8;
-                      font-size:0.75rem;">
-            ✓ {cfg['tpm_limit']}
-          </div>
-          <div style="font-family:'DM Sans',sans-serif; color:#64748b;
-                      font-size:0.72rem; margin-top:0.1rem;">
-            Best for: {cfg['best_for']}
-          </div>
-        </div>
-        </body></html>""",
-        height=100,
-    )
-
-    st.markdown(
-        """
-        <div style="font-family:'DM Sans',sans-serif; color:#475569;
-                    font-size:0.72rem; margin-top:0.5rem; line-height:1.5;">
-            💡 If you hit rate limits, switch to a different model.
-            Gemini 2.5 Flash recommended for best results.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("---")
+    with st.sidebar:
+        st.markdown(
+            """
+            <div style="font-family:'Syne',sans-serif; font-weight:700;
+                        color:#2dd4bf; font-size:0.9rem; margin-bottom:0.5rem;">
+                🤖 Select AI Model
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        from config import AVAILABLE_MODELS, DEFAULT_MODEL
+        model_names = list(AVAILABLE_MODELS.keys())
+        selected = st.selectbox(
+            "AI Model",
+            model_names,
+            index=model_names.index(DEFAULT_MODEL) if DEFAULT_MODEL in model_names else 0,
+            label_visibility="collapsed",
+            key="selected_model",
+        )
+        cfg = AVAILABLE_MODELS[selected]
+        provider_colors = {
+            "groq":       "#f97316",
+            "gemini":     "#3b82f6",
+            "openrouter": "#a855f7",
+        }
+        p_color = provider_colors.get(cfg["provider"], "#0d9488")
+        components.html(
+            f"""<!DOCTYPE html><html><head>
+            <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+            <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
+            </head><body>
+            <div style="background:#111918; border:1px solid #1f2937;
+                        border-left:3px solid {p_color}; border-radius:8px;
+                        padding:0.7rem 0.9rem; margin-top:0.3rem;">
+              <div style="font-family:'DM Sans',sans-serif; color:{p_color};
+                          font-size:0.72rem; font-weight:500; margin-bottom:0.3rem;
+                          text-transform:uppercase; letter-spacing:0.05em;">
+                {cfg['provider'].title()}
+              </div>
+              <div style="font-family:'DM Sans',sans-serif; color:#94a3b8;
+                          font-size:0.75rem;">
+                ✓ {cfg['tpm_limit']}
+              </div>
+              <div style="font-family:'DM Sans',sans-serif; color:#64748b;
+                          font-size:0.72rem; margin-top:0.1rem;">
+                Best for: {cfg['best_for']}
+              </div>
+            </div>
+            </body></html>""",
+            height=100,
+        )
+        st.markdown(
+            """
+            <div style="font-family:'DM Sans',sans-serif; color:#475569;
+                        font-size:0.72rem; margin-top:0.5rem; line-height:1.5;">
+                💡 If you hit rate limits, switch to a different model.
+                Gemini 2.5 Flash recommended for best results.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("---")
 
     # ── Hero Section ──────────────────────────────────────────
     components.html(
