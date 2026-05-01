@@ -649,6 +649,17 @@ def main():
         )
         st.stop()
 
+    # ── Model Selector for Phase 4 ──────────────────────────────
+    from utils.model_selector import render_phase_model_selector
+
+    st.markdown(
+        "<h3 style='font-family:Syne,sans-serif; color:#e2f0ef; "
+        "font-size:1rem; margin-bottom:0.3rem;'>🤖 Select AI Model for Phase 4</h3>",
+        unsafe_allow_html=True,
+    )
+    selected_model = render_phase_model_selector("phase4")
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # ── Run Button ──────────────────────────────────────────────
     col_btn, _ = st.columns([2, 3])
     with col_btn:
@@ -656,7 +667,11 @@ def main():
             "🚀 Run Summary Crew (Phase 4)",
             use_container_width=True,
             type="primary",
+            disabled=(selected_model is None),  # ← Fix 6: guard
         )
+
+    if selected_model is None:
+        st.warning("⚠️ Please select a model above before running.", icon="🤖")
 
     if run_btn:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -693,6 +708,7 @@ def main():
                     treatment_suggestions=treatment_raw,
                     drug_interactions=drug_raw,
                     dosage_recommendations=dosage_raw,
+                    phase_key="phase4",        # ← Fix 6: phase_key pass
                 )
 
                 st.session_state.summary_result = result
