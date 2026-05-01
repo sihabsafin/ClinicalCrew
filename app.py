@@ -26,14 +26,15 @@ def main():
             """,
             unsafe_allow_html=True,
         )
-        from config import AVAILABLE_MODELS, DEFAULT_MODEL
-        model_names = list(AVAILABLE_MODELS.keys())
-        selected = st.selectbox(
-            "AI Model",
-            model_names,
-            index=model_names.index(DEFAULT_MODEL) if DEFAULT_MODEL in model_names else 0,
-            label_visibility="collapsed",
-            key="selected_model",
+from config import AVAILABLE_MODELS
+model_names = list(AVAILABLE_MODELS.keys())
+selected = st.selectbox(
+    "AI Model",
+    model_names,
+    index=0,
+    label_visibility="collapsed",
+    key="selected_model",
+
         )
         cfg = AVAILABLE_MODELS[selected]
         provider_colors = {
