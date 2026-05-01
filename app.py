@@ -26,7 +26,7 @@ def main():
             """,
             unsafe_allow_html=True,
         )
-   from config import AVAILABLE_MODELS
+        from config import AVAILABLE_MODELS
 model_names = list(AVAILABLE_MODELS.keys())
 selected = st.selectbox(
     "AI Model",
