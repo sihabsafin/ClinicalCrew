@@ -1,16 +1,16 @@
 from crewai import Agent
 
 
-def _llm():
+def _llm(phase_key: str = "phase1"):
     from config import get_llm
-    return get_llm()
+    return get_llm(phase_key=phase_key)
 
 
 # ─────────────────────────────────────────
 # PHASE 1 — Report Intake Agents
 # ─────────────────────────────────────────
 
-def get_report_parser_agent() -> Agent:
+def get_report_parser_agent(phase_key: str = "phase1") -> Agent:
     return Agent(
         role="Medical Report Parser",
         goal=(
@@ -27,14 +27,14 @@ def get_report_parser_agent() -> Agent:
             "not in the report, you explicitly mark it as 'Not reported'. You output "
             "clean, structured JSON that downstream agents can reliably process."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_patient_context_agent() -> Agent:
+def get_patient_context_agent(phase_key: str = "phase1") -> Agent:
     return Agent(
         role="Patient Context Analyst",
         goal=(
@@ -51,14 +51,14 @@ def get_patient_context_agent() -> Agent:
             "and assessing overall patient complexity. Your profiles help physicians quickly "
             "understand the full clinical picture of a patient."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_data_validator_agent() -> Agent:
+def get_data_validator_agent(phase_key: str = "phase1") -> Agent:
     return Agent(
         role="Clinical Data Validator",
         goal=(
@@ -75,7 +75,7 @@ def get_data_validator_agent() -> Agent:
             "reports protect patients by ensuring analysis is only performed on "
             "sufficiently complete data."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
@@ -86,7 +86,7 @@ def get_data_validator_agent() -> Agent:
 # PHASE 2 — Diagnosis Analysis Agents
 # ─────────────────────────────────────────
 
-def get_symptom_analyzer_agent() -> Agent:
+def get_symptom_analyzer_agent(phase_key: str = "phase2") -> Agent:
     return Agent(
         role="Clinical Symptom Analyzer",
         goal=(
@@ -103,14 +103,14 @@ def get_symptom_analyzer_agent() -> Agent:
             "clinical evidence. You always flag urgent findings prominently. Your analysis "
             "is for decision support only and must be reviewed by the treating physician."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_lab_interpreter_agent() -> Agent:
+def get_lab_interpreter_agent(phase_key: str = "phase2") -> Agent:
     return Agent(
         role="Laboratory Results Interpreter",
         goal=(
@@ -127,14 +127,14 @@ def get_lab_interpreter_agent() -> Agent:
             "for the patient's overall clinical picture. You clearly flag critical values that "
             "require immediate physician attention."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_risk_assessor_agent() -> Agent:
+def get_risk_assessor_agent(phase_key: str = "phase2") -> Agent:
     return Agent(
         role="Clinical Risk Assessor",
         goal=(
@@ -151,7 +151,7 @@ def get_risk_assessor_agent() -> Agent:
             "patient is in danger, you say so explicitly and clearly. Your risk assessments "
             "guide physician decision-making but do not replace it."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
@@ -162,7 +162,7 @@ def get_risk_assessor_agent() -> Agent:
 # PHASE 3 — Treatment Planning Agents
 # ─────────────────────────────────────────
 
-def get_treatment_suggester_agent() -> Agent:
+def get_treatment_suggester_agent(phase_key: str = "phase3") -> Agent:
     return Agent(
         role="Evidence-Based Treatment Suggester",
         goal=(
@@ -181,14 +181,14 @@ def get_treatment_suggester_agent() -> Agent:
             "patient-specific factors. You never prescribe — you suggest options for "
             "physician consideration only."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_drug_interaction_agent() -> Agent:
+def get_drug_interaction_agent(phase_key: str = "phase3") -> Agent:
     return Agent(
         role="Drug Interaction Safety Checker",
         goal=(
@@ -206,14 +206,14 @@ def get_drug_interaction_agent() -> Agent:
             "Patient safety is your absolute priority. You clearly label Major interactions as "
             "requiring immediate physician review before any prescription is written."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_dosage_calculator_agent() -> Agent:
+def get_dosage_calculator_agent(phase_key: str = "phase3") -> Agent:
     return Agent(
         role="Patient-Specific Dosage Calculator",
         goal=(
@@ -232,7 +232,7 @@ def get_dosage_calculator_agent() -> Agent:
             "errors harm patients, so you always require physician verification of every "
             "calculated dose before it is administered."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
@@ -243,7 +243,7 @@ def get_dosage_calculator_agent() -> Agent:
 # PHASE 4 — Clinical Summary Agents
 # ─────────────────────────────────────────
 
-def get_report_writer_agent() -> Agent:
+def get_report_writer_agent(phase_key: str = "phase4") -> Agent:
     return Agent(
         role="Clinical Report Writer",
         goal=(
@@ -261,14 +261,14 @@ def get_report_writer_agent() -> Agent:
             "highlight critical information prominently. You always include a clear disclaimer "
             "that the AI-generated content requires physician review and sign-off."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_patient_explainer_agent() -> Agent:
+def get_patient_explainer_agent(phase_key: str = "phase4") -> Agent:
     return Agent(
         role="Patient Communication Specialist",
         goal=(
@@ -287,14 +287,14 @@ def get_patient_explainer_agent() -> Agent:
             "adherence. You always remind patients that their doctor makes all final decisions "
             "about their care."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
     )
 
 
-def get_followup_planner_agent() -> Agent:
+def get_followup_planner_agent(phase_key: str = "phase4") -> Agent:
     return Agent(
         role="Clinical Follow-Up Planner",
         goal=(
@@ -313,7 +313,7 @@ def get_followup_planner_agent() -> Agent:
             "need to monitor at home. Your plans reduce readmissions and improve outcomes "
             "by keeping patients engaged in their care journey."
         ),
-        llm=_llm(),
+        llm=_llm(phase_key),
         verbose=True,
         allow_delegation=False,
         max_iter=3,
