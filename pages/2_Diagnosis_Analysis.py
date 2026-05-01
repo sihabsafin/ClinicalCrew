@@ -656,6 +656,17 @@ def main():
         )
         st.stop()
 
+    # ── Model Selector for Phase 2 ──────────────────────────────
+    from utils.model_selector import render_phase_model_selector
+
+    st.markdown(
+        "<h3 style='font-family:Syne,sans-serif; color:#e2f0ef; "
+        "font-size:1rem; margin-bottom:0.3rem;'>🤖 Select AI Model for Phase 2</h3>",
+        unsafe_allow_html=True,
+    )
+    selected_model = render_phase_model_selector("phase2")
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # ── Run Button ──────────────────────────────────────────────
     col_btn, _ = st.columns([2, 3])
     with col_btn:
@@ -663,7 +674,11 @@ def main():
             "🚀 Run Diagnosis Crew (Phase 2)",
             use_container_width=True,
             type="primary",
+            disabled=(selected_model is None),
         )
+
+    if selected_model is None:
+        st.warning("⚠️ Please select a model above before running.", icon="🤖")
 
     if run_btn:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -689,7 +704,7 @@ def main():
                 parsed_raw  = st.session_state.get("_parsed_raw", "{}")
                 context_raw = st.session_state.get("_context_raw", "{}")
 
-                result = run_diagnosis_crew(parsed_raw, context_raw)
+                result = run_diagnosis_crew(parsed_raw, context_raw, phase_key="phase2")
 
                 st.session_state.diagnosis_result = result
                 st.session_state["_symptom_raw"]  = result.get("_symptom_raw", "{}")
