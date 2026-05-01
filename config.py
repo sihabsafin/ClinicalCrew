@@ -25,7 +25,7 @@ AVAILABLE_MODELS = {
     },
 
     # ── Google Gemini ─────────────────────────────────────────
-    "✨ Gemini 2.5 Flash (Recommended)": {
+    "✨ Gemini 2.5 Flash": {
         "model":     "gemini/gemini-2.5-flash-preview-04-17",
         "provider":  "gemini",
         "key_name":  "GEMINI_API_KEY",
@@ -48,8 +48,6 @@ AVAILABLE_MODELS = {
     },
 
     # ── OpenRouter Free Models ────────────────────────────────
-    # litellm (used by CrewAI) routes "openrouter/..." prefix automatically
-    # when OPENROUTER_API_KEY env var is set — no custom base_url needed
     "🌐 OpenRouter — DeepSeek R1 (Free)": {
         "model":     "openrouter/deepseek/deepseek-r1:free",
         "provider":  "openrouter",
@@ -87,8 +85,13 @@ AVAILABLE_MODELS = {
     },
 }
 
-# Default model
-DEFAULT_MODEL = "✨ Gemini 2.5 Flash (Recommended)"
+# Phase keys for per-phase model selection
+PHASE_MODEL_KEYS = {
+    "phase1": "model_phase1",
+    "phase2": "model_phase2",
+    "phase3": "model_phase3",
+    "phase4": "model_phase4",
+}
 
 
 def _secret(key: str, default: str = "") -> str:
@@ -100,21 +103,30 @@ def _secret(key: str, default: str = "") -> str:
         return os.getenv(key, default)
 
 
-def get_available_models() -> dict:
-    """Return only models whose API key is configured."""
-    available = {}
-    for name, cfg in AVAILABLE_MODELS.items():
-        key = _secret(cfg["key_name"])
-        if key:
-            available[name] = cfg
-    # If nothing configured, return all (for UI display)
-    return available if available else AVAILABLE_MODELS
+def get_model_names() -> list:
+    """Return all model display names."""
+    return list(AVAILABLE_MODELS.keys())
 
 
-def get_llm(temperature: float = 0.3, model_name: str = None):
+def get_phase_model(phase_key: str) -> str | None:
     """
-    Get LLM instance for selected model.
-    Falls back through: Gemini → Groq → OpenRouter
+    Get selected model name for a given phase.
+    Returns None if user hasn't selected yet.
+    phase_key: 'phase1' | 'phase2' | 'phase3' | 'phase4'
+    """
+    try:
+        import streamlit as st
+        session_key = PHASE_MODEL_KEYS.get(phase_key, "model_phase1")
+        return st.session_state.get(session_key, None)
+    except Exception:
+        return None
+
+
+def get_llm(temperature: float = 0.3, phase_key: str = "phase1"):
+    """
+    Get LLM instance for a specific phase.
+    phase_key: 'phase1' | 'phase2' | 'phase3' | 'phase4'
+    Raises clear error if no model selected or no API key.
     """
     from crewai import LLM
 
@@ -123,7 +135,7 @@ def get_llm(temperature: float = 0.3, model_name: str = None):
     gemini_key     = _secret("GEMINI_API_KEY")
     openrouter_key = _secret("OPENROUTER_API_KEY")
 
-    # Set env vars for litellm auto-routing
+    # Set env vars for litellm routing
     if groq_key:
         os.environ["GROQ_API_KEY"]       = groq_key
     if gemini_key:
@@ -131,15 +143,19 @@ def get_llm(temperature: float = 0.3, model_name: str = None):
     if openrouter_key:
         os.environ["OPENROUTER_API_KEY"] = openrouter_key
 
-    # Get selected model from session state if not passed
-    if model_name is None:
-        try:
-            import streamlit as st
-            model_name = st.session_state.get("selected_model", DEFAULT_MODEL)
-        except Exception:
-            model_name = DEFAULT_MODEL
+    # Get model selected for this phase
+    model_name = get_phase_model(phase_key)
 
-    cfg      = AVAILABLE_MODELS.get(model_name, AVAILABLE_MODELS[DEFAULT_MODEL])
+    if not model_name:
+        raise ValueError(
+            f"❌ No model selected for this phase. "
+            f"Please select a model from the panel above before running."
+        )
+
+    if model_name not in AVAILABLE_MODELS:
+        raise ValueError(f"Unknown model: {model_name}")
+
+    cfg      = AVAILABLE_MODELS[model_name]
     provider = cfg["provider"]
     model    = cfg["model"]
 
@@ -147,7 +163,8 @@ def get_llm(temperature: float = 0.3, model_name: str = None):
     if provider == "gemini":
         if not gemini_key:
             raise ValueError(
-                "GEMINI_API_KEY not found. Add it to Streamlit secrets."
+                "❌ GEMINI_API_KEY not found. "
+                "Add it to Streamlit secrets or .streamlit/secrets.toml"
             )
         return LLM(
             model=model,
@@ -159,7 +176,8 @@ def get_llm(temperature: float = 0.3, model_name: str = None):
     if provider == "groq":
         if not groq_key:
             raise ValueError(
-                "GROQ_API_KEY not found. Add it to Streamlit secrets."
+                "❌ GROQ_API_KEY not found. "
+                "Add it to Streamlit secrets or .streamlit/secrets.toml"
             )
         return LLM(
             model=model,
@@ -171,7 +189,8 @@ def get_llm(temperature: float = 0.3, model_name: str = None):
     if provider == "openrouter":
         if not openrouter_key:
             raise ValueError(
-                "OPENROUTER_API_KEY not found. Add it to Streamlit secrets."
+                "❌ OPENROUTER_API_KEY not found. "
+                "Add it to Streamlit secrets or .streamlit/secrets.toml"
             )
         return LLM(
             model=model,
@@ -179,27 +198,4 @@ def get_llm(temperature: float = 0.3, model_name: str = None):
             temperature=temperature,
         )
 
-    # ── Auto Fallback ─────────────────────────────────────────
-    if gemini_key:
-        return LLM(
-            model="gemini/gemini-2.5-flash-preview-04-17",
-            api_key=gemini_key,
-            temperature=temperature,
-        )
-    if groq_key:
-        return LLM(
-            model="groq/llama-3.3-70b-versatile",
-            api_key=groq_key,
-            temperature=temperature,
-        )
-    if openrouter_key:
-        return LLM(
-            model="openrouter/deepseek/deepseek-r1:free",
-            api_key=openrouter_key,
-            temperature=temperature,
-        )
-
-    raise ValueError(
-        "No API key found. Add GEMINI_API_KEY, GROQ_API_KEY, "
-        "or OPENROUTER_API_KEY to Streamlit secrets."
-    )
+    raise ValueError(f"Unknown provider: {provider}")
