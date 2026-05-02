@@ -106,29 +106,36 @@ def render_phase_model_selector(phase_key: str) -> str | None:
 
 
 def _render_model_info_badge(model_name: str):
-    """Show provider badge and info for selected model."""
     if model_name not in AVAILABLE_MODELS:
         return
     cfg      = AVAILABLE_MODELS[model_name]
     provider = cfg["provider"]
     color    = PROVIDER_COLORS.get(provider, "#0d9488")
-
+    status   = cfg.get("status", "")
     components.html(
         f"""<!DOCTYPE html><html><head>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
         <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
         </head><body>
         <div style="background:#0a1512; border:1px solid {color}33;
-                    border-radius:8px; padding:0.6rem 0.9rem;
-                    display:flex; align-items:center; gap:1rem; margin-top:0.3rem;">
-          <span style="background:{color}22; color:{color};
-                       border:1px solid {color}44; border-radius:20px;
-                       padding:0.2rem 0.7rem; font-size:0.72rem;
-                       font-family:'DM Sans',sans-serif; white-space:nowrap;">
-            {provider.title()}
-          </span>
-          <div style="font-family:'DM Sans',sans-serif; color:#64748b; font-size:0.75rem;">
-            ✓ {cfg['tpm_limit']} &nbsp;|&nbsp; Best for: {cfg['best_for']}
+                    border-radius:8px; padding:0.6rem 0.9rem; margin-top:0.3rem;">
+          <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+            <span style="background:{color}22; color:{color};
+                         border:1px solid {color}44; border-radius:20px;
+                         padding:0.2rem 0.7rem; font-size:0.72rem;
+                         font-family:'DM Sans',sans-serif; white-space:nowrap;">
+              {provider.title()}
+            </span>
+            <span style="background:#22c55e22; color:#22c55e;
+                         border:1px solid #22c55e44; border-radius:20px;
+                         padding:0.2rem 0.7rem; font-size:0.72rem;
+                         font-family:'DM Sans',sans-serif; white-space:nowrap;">
+              {status}
+            </span>
+            <span style="font-family:'DM Sans',sans-serif; color:#64748b;
+                         font-size:0.72rem;">
+              {cfg['tpm_limit']} | {cfg['best_for']}
+            </span>
           </div>
         </div>
         </body></html>""",
