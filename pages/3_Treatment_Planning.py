@@ -85,6 +85,54 @@ def _build_log_lines(phase: str) -> list[dict]:
     return lines
 
 
+# ── Safe getter helpers ────────────────────────────────────
+def _safe_str(val, default: str = "") -> str:
+    """Safely convert any value to string."""
+    if val is None:
+        return default
+    if isinstance(val, str):
+        return val
+    if isinstance(val, dict):
+        # Try common keys
+        for k in ["name", "drug_or_intervention", "text", "value", "content"]:
+            if k in val:
+                return str(val[k])
+        return str(val)
+    if isinstance(val, list):
+        return ", ".join(_safe_str(v) for v in val)
+    return str(val)
+
+
+def _safe_dict(val) -> dict:
+    """Safely ensure a value is a dict."""
+    if isinstance(val, dict):
+        return val
+    if isinstance(val, str):
+        # Try JSON parse
+        try:
+            import json
+            parsed = json.loads(val)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+        return {"drug_or_intervention": val}
+    if isinstance(val, list):
+        return {"drug_or_intervention": ", ".join(str(v) for v in val)}
+    return {}
+
+
+def _safe_list(val) -> list:
+    """Safely ensure a value is a list."""
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str) and val.strip():
+        return [val]
+    if isinstance(val, dict):
+        return [val]
+    return []
+
+
 # ── Tab 1: Treatment Options ───────────────────────────────────
 def _render_treatment_options(data: dict):
     st.markdown(
@@ -94,7 +142,7 @@ def _render_treatment_options(data: dict):
     )
 
     # Disclaimer
-    disclaimer = data.get("disclaimer", "")
+    disclaimer = _safe_str(data.get("disclaimer", ""))
     if disclaimer:
         components.html(
             f"""<!DOCTYPE html><html><head>
@@ -106,7 +154,7 @@ def _render_treatment_options(data: dict):
                         padding:0.9rem 1.1rem; margin-bottom:1rem;">
               <div style="font-family:'DM Sans',sans-serif; color:#fca5a5;
                           font-size:0.82rem; line-height:1.6;">
-                ⚠️ {disclaimer}
+                ⚠️ {disclaimer[:400]}
               </div>
             </div>
             </body></html>""",
@@ -114,7 +162,7 @@ def _render_treatment_options(data: dict):
         )
 
     # Treatment Goals
-    goals = data.get("treatment_goals", [])
+    goals = _safe_list(data.get("treatment_goals", []))
     if goals:
         st.markdown(
             "<h4 style='font-family:Syne,sans-serif; color:#2dd4bf; "
@@ -128,7 +176,7 @@ def _render_treatment_options(data: dict):
                         padding:0.7rem 1rem; margin:0.3rem 0;
                         font-family:'DM Sans',sans-serif; color:#94a3b8;
                         font-size:0.87rem;">
-              ✓ {g}
+              ✓ {_safe_str(g)[:200]}
             </div>
             """
             for g in goals
@@ -141,38 +189,126 @@ def _render_treatment_options(data: dict):
             height=max(80, len(goals) * 60),
         )
 
-    # Condition Treatments
-    conditions = data.get("condition_treatments", [])
-    for cond in conditions:
+    # ── Condition Treatments ───────────────────────────────────
+    conditions = _safe_list(data.get("condition_treatments", []))
+
+    if not conditions:
+        # Fallback: maybe agent returned flat structure
+        st.info("Treatment data received — displaying available information.")
+        raw_html = f"""
+        <div style="background:#111918; border:1px solid #1f2937;
+                    border-radius:10px; padding:1.2rem; white-space:pre-wrap;
+                    font-family:'DM Sans',sans-serif; color:#94a3b8;
+                    font-size:0.85rem; line-height:1.7; max-height:400px;
+                    overflow-y:auto;">
+          {str(data)[:3000]}
+        </div>
+        """
+        components.html(
+            f"""<!DOCTYPE html><html><head>
+            <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+            <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
+            </head><body>{raw_html}</body></html>""",
+            height=420,
+        )
+        return
+
+    for cond_raw in conditions:
+        cond = _safe_dict(cond_raw)
+        cond_name = _safe_str(
+            cond.get("condition") or cond.get("name") or cond.get("diagnosis", ""),
+            "Condition"
+        )
+
         st.markdown(
             f"""
             <h4 style='font-family:Syne,sans-serif; color:#e2f0ef;
                        font-size:1rem; margin:1.2rem 0 0.6rem 0;
                        border-bottom:1px solid #1f2937; padding-bottom:0.4rem;'>
-                🏥 {cond.get('condition', 'Condition')}
+                🏥 {cond_name}
             </h4>
             """,
             unsafe_allow_html=True,
         )
 
-        def _render_tx_group(items: list, label: str, color: str):
+        def _render_tx_group(items_raw, label: str, color: str):
+            items = _safe_list(items_raw)
             if not items:
                 return
+
             st.markdown(
                 f"<div style='font-family:DM Sans,sans-serif; color:{color}; "
                 f"font-size:0.82rem; font-weight:500; margin:0.5rem 0 0.3rem 0;'>"
-                f"{'▶' if color == '#22c55e' else '▷'} {label}</div>",
+                f"▶ {label}</div>",
                 unsafe_allow_html=True,
             )
+
             tx_html = ""
-            for tx in items:
-                grade = tx.get("evidence_grade", "")
-                source = tx.get("guideline_source", "")
+            for tx_raw in items:
+                # Handle both dict and string items
+                if isinstance(tx_raw, str):
+                    # Agent returned a plain string treatment
+                    tx_html += f"""
+                    <div style="background:#111918; border:1px solid #1f2937;
+                                border-left:4px solid {color}; border-radius:10px;
+                                padding:0.9rem 1rem; margin:0.3rem 0;">
+                      <div style="font-family:'DM Sans',sans-serif; color:#e2f0ef;
+                                  font-size:0.9rem;">💊 {tx_raw[:300]}</div>
+                    </div>
+                    """
+                    continue
+
+                tx = _safe_dict(tx_raw)
+                if not tx:
+                    continue
+
+                # Extract fields safely
+                drug = _safe_str(
+                    tx.get("drug_or_intervention")
+                    or tx.get("name")
+                    or tx.get("drug")
+                    or tx.get("intervention", ""),
+                    "Treatment"
+                )
+                tx_type     = _safe_str(tx.get("type") or tx.get("category", ""))
+                grade       = _safe_str(tx.get("evidence_grade") or tx.get("grade", ""))
+                source      = _safe_str(
+                    tx.get("guideline_source")
+                    or tx.get("source")
+                    or tx.get("guideline", "")
+                )
+                rationale   = _safe_str(
+                    tx.get("rationale")
+                    or tx.get("reason")
+                    or tx.get("description", "")
+                )
+                consider    = _safe_str(
+                    tx.get("considerations")
+                    or tx.get("notes")
+                    or tx.get("caution", "")
+                )
+
                 grade_color = (
                     "#22c55e" if grade == "A"
                     else "#fbbf24" if grade == "B"
                     else "#94a3b8"
                 )
+
+                grade_badge = (
+                    f'<span style="background:{grade_color}22; color:{grade_color};'
+                    f'border:1px solid {grade_color}44; border-radius:4px;'
+                    f'padding:0.1rem 0.5rem; font-size:0.72rem;'
+                    f'font-family:DM Sans,sans-serif;">Grade {grade}</span>'
+                    if grade else ""
+                )
+                source_badge = (
+                    f'<span style="background:#3b82f622; color:#3b82f6;'
+                    f'border:1px solid #3b82f644; border-radius:4px;'
+                    f'padding:0.1rem 0.5rem; font-size:0.72rem;'
+                    f'font-family:DM Sans,sans-serif;">{source}</span>'
+                    if source else ""
+                )
+
                 tx_html += f"""
                 <div style="background:#111918; border:1px solid #1f2937;
                             border-left:4px solid {color}; border-radius:10px;
@@ -180,55 +316,48 @@ def _render_treatment_options(data: dict):
                   <div style="display:flex; justify-content:space-between;
                               align-items:flex-start; margin-bottom:0.4rem;">
                     <div style="font-family:'Syne',sans-serif; font-weight:700;
-                                color:#e2f0ef; font-size:0.9rem;">
-                      💊 {tx.get('drug_or_intervention','')}
+                                color:#e2f0ef; font-size:0.9rem; flex:1;">
+                      💊 {drug[:150]}
                       <span style="font-family:'DM Sans',sans-serif; font-weight:400;
                                    color:#64748b; font-size:0.75rem; margin-left:0.3rem;">
-                        ({tx.get('type','')})
+                        {('(' + tx_type + ')') if tx_type else ''}
                       </span>
                     </div>
                     <div style="display:flex; gap:0.3rem; flex-shrink:0; margin-left:0.5rem;">
-                      <span style="background:{grade_color}22; color:{grade_color};
-                                   border:1px solid {grade_color}44; border-radius:4px;
-                                   padding:0.1rem 0.5rem; font-size:0.72rem;
-                                   font-family:'DM Sans',sans-serif;">Grade {grade}</span>
-                      <span style="background:#3b82f622; color:#3b82f6;
-                                   border:1px solid #3b82f644; border-radius:4px;
-                                   padding:0.1rem 0.5rem; font-size:0.72rem;
-                                   font-family:'DM Sans',sans-serif;">{source}</span>
+                      {grade_badge}{source_badge}
                     </div>
                   </div>
-                  <div style="font-family:'DM Sans',sans-serif; color:#94a3b8;
-                              font-size:0.82rem; line-height:1.5;">
-                    {tx.get('rationale','')[:200]}
-                  </div>
-                  <div style="font-family:'DM Sans',sans-serif; color:#64748b;
-                              font-size:0.78rem; margin-top:0.3rem; font-style:italic;">
-                    ⚠ {tx.get('considerations','')[:150]}
-                  </div>
+                  {'<div style="font-family:DM Sans,sans-serif; color:#94a3b8; font-size:0.82rem; line-height:1.5; margin-bottom:0.3rem;">' + rationale[:250] + '</div>' if rationale else ''}
+                  {'<div style="font-family:DM Sans,sans-serif; color:#64748b; font-size:0.78rem; font-style:italic;">⚠ ' + consider[:150] + '</div>' if consider else ''}
                 </div>
                 """
-            height = max(120, len(items) * 160)
-            components.html(
-                f"""<!DOCTYPE html><html><head>
-                <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-                <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
-                </head><body>{tx_html}</body></html>""",
-                height=height,
-            )
+
+            if tx_html:
+                height = max(120, len(items) * 160)
+                components.html(
+                    f"""<!DOCTYPE html><html><head>
+                    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+                    <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
+                    </head><body>{tx_html}</body></html>""",
+                    height=height,
+                )
 
         _render_tx_group(
-            cond.get("first_line", []),  "First-Line Treatment", "#22c55e"
+            cond.get("first_line")  or cond.get("firstLine",  []),
+            "First-Line Treatment", "#22c55e",
         )
         _render_tx_group(
-            cond.get("second_line", []), "Second-Line Treatment", "#fbbf24"
+            cond.get("second_line") or cond.get("secondLine", []),
+            "Second-Line Treatment", "#fbbf24",
         )
         _render_tx_group(
-            cond.get("alternatives", []),"Alternative Options",  "#a855f7"
+            cond.get("alternatives") or cond.get("alternative", []),
+            "Alternative Options", "#a855f7",
         )
 
         # Contraindicated
-        contra = cond.get("contraindicated", [])
+        contra_raw = cond.get("contraindicated") or cond.get("contraindications", [])
+        contra = _safe_list(contra_raw)
         if contra:
             st.markdown(
                 "<div style='font-family:DM Sans,sans-serif; color:#ef4444; "
@@ -236,7 +365,22 @@ def _render_treatment_options(data: dict):
                 "✗ Contraindicated</div>",
                 unsafe_allow_html=True,
             )
-            for c in contra:
+            for c_raw in contra:
+                if isinstance(c_raw, str):
+                    drug_name   = c_raw
+                    reason_text = ""
+                else:
+                    c = _safe_dict(c_raw)
+                    drug_name   = _safe_str(
+                        c.get("drug_or_intervention")
+                        or c.get("drug")
+                        or c.get("name", "")
+                    )
+                    reason_text = _safe_str(
+                        c.get("reason_contraindicated")
+                        or c.get("reason")
+                        or c.get("notes", "")
+                    )
                 st.markdown(
                     f"""
                     <div style="background:#1a0808; border:1px solid #ef444433;
@@ -244,19 +388,17 @@ def _render_treatment_options(data: dict):
                                 padding:0.6rem 1rem; margin:0.2rem 0;">
                       <span style="font-family:'DM Sans',sans-serif; color:#fca5a5;
                                    font-size:0.85rem; font-weight:500;">
-                        ✗ {c.get('drug_or_intervention','')}
+                        ✗ {drug_name[:150]}
                       </span>
-                      <span style="font-family:'DM Sans',sans-serif; color:#64748b;
-                                   font-size:0.78rem; margin-left:0.5rem;">
-                        — {c.get('reason_contraindicated','')}
-                      </span>
+                      {('<span style="font-family:DM Sans,sans-serif; color:#64748b; font-size:0.78rem; margin-left:0.5rem;">— ' + reason_text[:150] + '</span>') if reason_text else ''}
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
     # Non-pharmacological
-    non_pharm = data.get("non_pharmacological", [])
+    non_pharm_raw = data.get("non_pharmacological") or data.get("nonPharmacological", [])
+    non_pharm = _safe_list(non_pharm_raw)
     if non_pharm:
         st.markdown(
             "<h4 style='font-family:Syne,sans-serif; color:#2dd4bf; "
@@ -264,9 +406,27 @@ def _render_treatment_options(data: dict):
             unsafe_allow_html=True,
         )
         np_html = ""
-        for np_item in non_pharm:
-            grade = np_item.get("evidence_grade", "")
-            grade_color = (
+        for np_raw in non_pharm:
+            if isinstance(np_raw, str):
+                np_html += f"""
+                <div style="background:#111918; border:1px solid #1f2937;
+                            border-left:4px solid #2dd4bf; border-radius:10px;
+                            padding:0.8rem 1rem; margin:0.3rem 0;">
+                  <div style="font-family:'DM Sans',sans-serif; color:#e2f0ef;
+                              font-size:0.88rem;">🏃 {np_raw[:200]}</div>
+                </div>
+                """
+                continue
+
+            np_item      = _safe_dict(np_raw)
+            intervention = _safe_str(
+                np_item.get("intervention")
+                or np_item.get("name")
+                or np_item.get("recommendation", "")
+            )
+            rationale    = _safe_str(np_item.get("rationale") or np_item.get("reason", ""))
+            grade        = _safe_str(np_item.get("evidence_grade") or np_item.get("grade", ""))
+            grade_color  = (
                 "#22c55e" if grade == "A"
                 else "#fbbf24" if grade == "B"
                 else "#94a3b8"
@@ -276,30 +436,24 @@ def _render_treatment_options(data: dict):
                         border-left:4px solid #2dd4bf; border-radius:10px;
                         padding:0.8rem 1rem; margin:0.3rem 0;
                         display:flex; justify-content:space-between; align-items:center;">
-              <div>
+              <div style="flex:1;">
                 <div style="font-family:'DM Sans',sans-serif; font-weight:500;
                             color:#e2f0ef; font-size:0.88rem;">
-                  🏃 {np_item.get('intervention','')}
+                  🏃 {intervention[:150]}
                 </div>
-                <div style="font-family:'DM Sans',sans-serif; color:#64748b;
-                            font-size:0.78rem; margin-top:0.2rem;">
-                  {np_item.get('rationale','')[:150]}
-                </div>
+                {'<div style="font-family:DM Sans,sans-serif; color:#64748b; font-size:0.78rem; margin-top:0.2rem;">' + rationale[:150] + '</div>' if rationale else ''}
               </div>
-              <span style="background:{grade_color}22; color:{grade_color};
-                           border:1px solid {grade_color}44; border-radius:4px;
-                           padding:0.2rem 0.6rem; font-size:0.72rem;
-                           font-family:'DM Sans',sans-serif; flex-shrink:0;
-                           margin-left:0.5rem;">Grade {grade}</span>
+              {'<span style="background:' + grade_color + '22; color:' + grade_color + '; border:1px solid ' + grade_color + '44; border-radius:4px; padding:0.2rem 0.6rem; font-size:0.72rem; font-family:DM Sans,sans-serif; flex-shrink:0; margin-left:0.5rem;">Grade ' + grade + '</span>' if grade else ''}
             </div>
             """
-        components.html(
-            f"""<!DOCTYPE html><html><head>
-            <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-            <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
-            </head><body>{np_html}</body></html>""",
-            height=max(100, len(non_pharm) * 100),
-        )
+        if np_html:
+            components.html(
+                f"""<!DOCTYPE html><html><head>
+                <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+                <style>*{{margin:0;padding:0;box-sizing:border-box;}} body{{background:transparent;}}</style>
+                </head><body>{np_html}</body></html>""",
+                height=max(100, len(non_pharm) * 100),
+            )
 
 
 # ── Tab 2: Drug Safety ─────────────────────────────────────────
